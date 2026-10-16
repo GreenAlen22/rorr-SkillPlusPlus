@@ -29,6 +29,11 @@ end
 T.claim_tokens()
 Callback.add(Callback.ON_GAME_START, T.claim_tokens)
 
+Initialize.add(Callback.Priority.AFTER * 2, function()
+    U.build_maps()
+    T.claim_tokens()
+end)
+
 Hook.add_post(gm.constants.translate, function(self, other, result, args)
     local skill_id = token_skill[args[1].value]
     if not skill_id then return end

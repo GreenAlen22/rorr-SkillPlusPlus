@@ -45,6 +45,8 @@ Console.new{
 
         say(string.format("skill descriptions with the upgrade line: %d", SPP.Tooltip.claimed()))
 
+        say(string.format("skills registered by other mods: %d", SPP.Api.count()))
+
         local level = S.level()
         if not level then
             say("not in a run")

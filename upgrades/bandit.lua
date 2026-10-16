@@ -11,18 +11,18 @@ local FPS = 60
 local T = {
     banditZ = { damage = 0.10, pierceChance = 0.10,
                 text = { { "pierceChance", "pct" } } },
-    banditX = { radius = 0.20, stickEvery = 2,
-                text = { { "radius", "pct" }, { "stickEvery", "every" } } },
+    banditX = { radius = 0.20, sticks = 1,
+                text = { { "radius", "pct" }, { "sticks", "count" } } },
     banditC = { invisibility = 0.5, damage = 0.20,
                 text = { { "invisibility", "sec" } } },
-    banditV = { damage = 0.10, execute = 0.10,
+    banditV = { execute = 0.25,
                 text = { { "execute", "pct" } } },
-    banditZ2 = { whipReach = 0.20, damage = 0.10,
-                 text = { { "whipReach", "pct" } } },
+    banditZ2 = { lightningChance = 0.10, whipReach = 0.20,
+                 text = { { "lightningChance", "pct" }, { "whipReach", "pct" } } },
     banditC2 = { flashRadius = 0.20, flashSeconds = 1,
                  text = { { "flashRadius", "pct" }, { "flashSeconds", "sec" } } },
-    banditV2 = { standoffStack = 0.05, damage = 0.10,
-                 text = { { "standoffStack", "pct" } } },
+    banditV2 = { standoffTime = 0.10, standoffStack = 0.10,
+                 text = { { "standoffTime", "pct" }, { "standoffStack", "pct" } } },
 }
 
 U.register({ "banditZ" }, T.banditZ)
@@ -53,11 +53,21 @@ local STATE_Z2 = H.state("banditZ2")
 
 H.on_explosion(function(actor, args, source)
     if source or not H.in_state(actor, STATE_Z2) then return end
+    if args[8].value ~= 2 or args[9].value ~= 1 then return end
     local rank = U.rank_for(actor, Z2)
     if rank < 1 then return end
     local mult = 1 + T.banditZ2.whipReach * rank
     args[2].value = actor.x + (args[2].value - actor.x) * mult
     args[8].value = args[8].value * mult
+    return "whip"
+end)
+
+local SPAWN_LIGHTNING = 32
+
+H.after_explosion(function(actor, attack, args, source, tag)
+    if tag ~= "whip" then return end
+    if math.random() >= T.banditZ2.lightningChance * U.rank_for(actor, Z2) then return end
+    attack.attack_flags = math.floor(tonumber(attack.attack_flags) or 0) | SPAWN_LIGHTNING
 end)
 
 local FLASH = gm.constants.oBanditGrenade
@@ -96,6 +106,23 @@ RecalculateStats.add(function(actor, api)
     if rank > 0 then api.damage_mult(1 + T.banditV2.standoffStack * rank * stacks) end
 end)
 
+local STANDOFF_KILL, STANDOFF_KILL_BOOSTED = 65536, 131072
+local STANDOFF_FRAMES, STANDOFF_FRAMES_BOOSTED = 900, 1200
+
+Callback.add(Callback.ON_ATTACK_HANDLE_END, function(attack_info)
+    if not Net.host or (tonumber(attack_info.kill_number) or 0) < 1 then return end
+    local flags = math.floor(tonumber(attack_info.attack_flags) or 0)
+    if flags & (STANDOFF_KILL | STANDOFF_KILL_BOOSTED) == 0 then return end
+    local parent = attack_info.parent
+    if not Instance.exists(parent) or parent.object_index ~= OP or parent:buff_count(skull) < 1 then return end
+    local rank = U.rank_for(parent, V2)
+    if rank < 1 then return end
+
+    local base = flags & STANDOFF_KILL_BOOSTED ~= 0 and STANDOFF_FRAMES_BOOSTED or STANDOFF_FRAMES
+    local frames = math.floor(base * (1 + T.banditV2.standoffTime * rank))
+    if (tonumber(parent:buff_get_time(skull)) or 0) < frames then parent:buff_set_time(skull, frames) end
+end)
+
 local DYNAMITE = gm.constants.oBanditDynamite
 H.watch_destroy("oBanditDynamite")
 
@@ -110,7 +137,7 @@ local THROW = 4
 H.on_activity(function(actor, prev)
     if tonumber(actor.activity) ~= THROW or prev.var1 ~= 0 or tonumber(actor.activity_var1) ~= 1 then return end
 
-    local extra = math.floor(U.rank_for(actor, X) / T.banditX.stickEvery)
+    local extra = T.banditX.sticks * U.rank_for(actor, X)
     if extra < 1 then return end
 
     local xs = actor.image_xscale

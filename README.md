@@ -14,12 +14,17 @@ Or hold Tab and click the skill icon. Right-click within 3 seconds to undo the l
 
 The skill level is shown above its icon. What each level gives is written at the bottom of the skill description.
 
+Die while an ally lives and you become a drone: every point you spent levels up its attack. Your skill levels come back with you.
+
 Go to Game settings > Mods tab to change the point interval or the upgrade key.
 
 ---
 ## Todo
 - Balance adjustment.
-- Upgrades for survivors from other mods.
+
+---
+## For modders
+Survivor mods can give their skills Skills++ upgrades of their own: a table of numbers, effects of their own with the skill level, or "cannot be leveled". See [For modders](https://github.com/GreenAlen22/rorr-SkillPlusPlus/wiki/For-modders) on the wiki.
 
 ---
 ## Credits

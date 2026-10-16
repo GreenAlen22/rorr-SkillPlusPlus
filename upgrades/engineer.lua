@@ -11,13 +11,13 @@ local OP = gm.constants.oP
 local T = {
     engineerZ  = { grenadeEvery = 2, radius = 0.15,
                    text = { { "grenadeEvery", "every" }, { "radius", "pct" } } },
-    engineerX  = { radius = 0.20, mineEvery = 3,
-                   text = { { "radius", "pct" }, { "mineEvery", "every" } } },
-    engineerC  = { harpoonEvery = 2, stock_every = 2,
-                   text = { { "harpoonEvery", "every" } } },
+    engineerX  = { mines = 1,
+                   text = { { "mines", "count" } } },
+    engineerC  = { damage = 0.10, harpoons = 1,
+                   text = { { "harpoons", "count" } } },
     engineerV  = { turretAttackSpeed = 0.15, stock_every = 2,
                    text = { { "turretAttackSpeed", "pct" } } },
-    engineerZ2 = { radius = 0.20, shellEvery = 3,
+    engineerZ2 = { radius = 0.10, shellEvery = 2,
                    text = { { "radius", "pct" }, { "shellEvery", "every" } } },
     engineerX2 = { mineTriggers = 1, radius = 0.20,
                    text = { { "mineTriggers", "count" }, { "radius", "pct" } } },
@@ -59,13 +59,11 @@ local MINE2   = gm.constants.oEngiMine2
 
 H.watch_destroy("oEngiGrenade")
 H.watch_destroy("oEngiMortar")
-H.watch_event("oEngiMine", "Step_2")
 H.watch_event("oEngiMine2", "Step_2")
 
 local blast_of = {
     [GRENADE] = { ids = Z,  def = T.engineerZ },
     [MORTAR]  = { ids = Z2, def = T.engineerZ2 },
-    [MINE]    = { ids = X,  def = T.engineerX },
     [MINE2]   = { ids = X2, def = T.engineerX2 },
 }
 
@@ -159,7 +157,7 @@ Callback.add(state_c.on_step, function(actor, data)
     harpoons[actor.id] = shots
     if shots <= last or not Net.host then return end
 
-    local extra = math.floor(U.rank_for(actor, C) / T.engineerC.harpoonEvery)
+    local extra = T.engineerC.harpoons * U.rank_for(actor, C)
     if extra < 1 then return end
 
     local xs = actor.image_xscale
@@ -183,7 +181,7 @@ local MINE_SPACING = 12
 
 Callback.add(Skill.find("engineerX", "ror").on_activate, function(actor, skill, slot)
     if not Net.host then return end
-    local extra = math.floor(U.rank_for(actor, X) / T.engineerX.mineEvery)
+    local extra = T.engineerX.mines * U.rank_for(actor, X)
     if extra < 1 then return end
 
     for k = 1, extra do

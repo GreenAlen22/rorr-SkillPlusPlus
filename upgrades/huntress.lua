@@ -12,18 +12,17 @@ local FPS = 60
 local T = {
     huntressZ  = { damage = 0.10, arrowEvery = 2,
                    text = { { "arrowEvery", "every" } } },
-    huntressX  = { bounces = 1, damage = 0.10,
-                   text = { { "bounces", "count" } } },
-    huntressC  = { blinkInvuln = 0.1, blinkInvulnMax = 0.5, stock_every = 2,
-                   text = { { "blinkInvuln", "sec", "blinkInvulnMax" } } },
+    huntressX  = { bounces = 1, bounceDamage = 0.20,
+                   text = { { "bounces", "count" }, { "bounceDamage", "pct" } } },
+    huntressC  = { stock_every = 1 },
     huntressV  = { bomblets = 2, bombletDamage = 0.15,
                    text = { { "bomblets", "count" }, { "bombletDamage", "pct" } } },
-    huntressZ2 = { chargeSpeed = 0.10, damage = 0.10,
-                   text = { { "chargeSpeed", "pct" } } },
+    huntressZ2 = { damage = 0.20, arrowSize = 0.20,
+                   text = { { "arrowSize", "pct" } } },
     huntressX2 = { cycloneSize = 0.20, damage = 0.10,
                    text = { { "cycloneSize", "pct" } } },
-    huntressC2 = { dartBlast = 0.25, stock_every = 2,
-                   text = { { "dartBlast", "pct" } } },
+    huntressC2 = { dartBlast = 0.25, dartInvuln = 0.5,
+                   text = { { "dartBlast", "pct" }, { "dartInvuln", "sec" } } },
 }
 
 U.register({ "huntressZ" }, T.huntressZ)
@@ -36,7 +35,6 @@ U.register({ "huntressC2" }, T.huntressC2)
 
 local Z  = U.ids("huntressZ")
 local X  = U.ids("huntressX")
-local C  = U.ids("huntressC")
 local V  = U.ids("huntressV", "huntressVBoosted")
 local Z2 = U.ids("huntressZ2")
 local X2 = U.ids("huntressX2")
@@ -91,11 +89,20 @@ Hook.add_pre("gml_Object_oHuntressBoomerang_Step_2", function(self, other)
     end
 end)
 
-Callback.add(Skill.find("huntressC", "ror").on_activate, function(actor, skill, slot)
-    local rank = U.rank_for(actor, C)
-    if rank < 1 then return end
-    local seconds = math.min(T.huntressC.blinkInvuln * rank, T.huntressC.blinkInvulnMax)
-    actor.invincible = math.max(tonumber(actor.invincible) or 0, math.floor(seconds * FPS))
+local GLAIVE_HIT = "gml_Object_oHuntressBoomerang_Collision_pActorCollisionBase"
+local hits_before = nil
+
+Hook.add_pre(GLAIVE_HIT, function(self, other)
+    hits_before = tonumber(self.hit_count) or 0
+end)
+
+Hook.add_post(GLAIVE_HIT, function(self, other)
+    local before = hits_before
+    hits_before = nil
+    if not before or (tonumber(self.hit_count) or 0) <= before then return end
+    if not Instance.exists(self.parent) then return end
+    local rank = U.rank_for(self.parent, X)
+    if rank > 0 then self.damage_coeff = self.damage_coeff + T.huntressX.bounceDamage * rank end
 end)
 
 local function add_bomblets(bolt, scepter)
@@ -123,7 +130,15 @@ H.watch_destroy("oHuntressBolt3", function(bolt) add_bomblets(bolt, true) end)
 local GRENADE = gm.constants.oHuntressGrenade
 local DART = gm.constants.oHuntressBolt4
 H.watch_destroy("oHuntressGrenade")
-H.watch_destroy("oHuntressBolt4")
+
+H.watch_destroy("oHuntressBolt4", function(dart)
+    local parent = dart.parent
+    if not Instance.exists(parent) or parent.object_index ~= gm.constants.oP then return end
+    local rank = U.rank_for(parent, C2)
+    if rank < 1 then return end
+    local frames = math.floor(T.huntressC2.dartInvuln * FPS * rank)
+    parent.invincible = math.max(tonumber(parent.invincible) or 0, frames)
+end)
 
 H.on_explosion(function(actor, args, source)
     if not source then return end
@@ -137,12 +152,16 @@ H.on_explosion(function(actor, args, source)
     end
 end)
 
-Callback.add(ActorState.find("huntressZ2Draw", "ror").on_step, function(actor, data)
-    local rank = U.rank_for(actor, Z2)
-    if rank < 1 or data.charge >= data.chargeMax then return end
-    local extra = actor.attack_speed * 1.5 * T.huntressZ2.chargeSpeed * rank
-    data.charge = math.min(data.chargeMax, data.charge + extra)
-end)
+for _, object in ipairs({ "oHuntressBolt1B", "oHuntressBolt1B2" }) do
+    H.on_first_step(object, function(arrow)
+        if not Instance.exists(arrow.parent) then return end
+        local rank = U.rank_for(arrow.parent, Z2)
+        if rank < 1 then return end
+        local mult = 1 + T.huntressZ2.arrowSize * rank
+        arrow.image_xscale = arrow.image_xscale * mult
+        arrow.image_yscale = arrow.image_yscale * mult
+    end)
+end
 
 H.on_first_step("oHuntressTrirang", function(cyclone)
     if not Instance.exists(cyclone.parent) then return end

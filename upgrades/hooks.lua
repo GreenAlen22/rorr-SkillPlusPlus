@@ -32,6 +32,20 @@ Hook.add_post(gm.constants["skill_recalculate_stats@anon@8392@ActorSkill@scr_act
     for _, fn in ipairs(skill_recalc_rules) do fn(self, actor) end
 end)
 
+local bullet_calls = {}
+
+Hook.add_pre(gm.constants.fire_bullet, Callback.Priority.BEFORE * 2, function(self, other, result, args)
+    if #bullet_after == 0 or self.object_index ~= OP then return end
+    local values = {}
+    for i = 1, #args do values[i] = args[i].value end
+    bullet_calls[#bullet_calls + 1] = values
+end)
+
+Hook.add_post(gm.constants.fire_bullet, Callback.Priority.AFTER * 2, function(self, other, result, args)
+    if #bullet_after == 0 or self.object_index ~= OP then return end
+    bullet_calls[#bullet_calls] = nil
+end)
+
 Hook.add_pre(gm.constants.fire_bullet, function(self, other, result, args)
     if #bullet_rules == 0 or self.object_index ~= OP then return end
     for _, fn in ipairs(bullet_rules) do fn(self, args) end
@@ -39,7 +53,8 @@ end)
 
 Hook.add_post(gm.constants.fire_bullet, function(self, other, result, args)
     if #bullet_after == 0 or self.object_index ~= OP then return end
-    for _, fn in ipairs(bullet_after) do fn(self, result.value, args) end
+    local vanilla = bullet_calls[#bullet_calls]
+    for _, fn in ipairs(bullet_after) do fn(self, result.value, args, vanilla) end
 end)
 
 local sources = {}
@@ -113,6 +128,7 @@ end)
 Callback.add(Callback.ON_GAME_START, function()
     last = {}
     sources = {}
+    bullet_calls = {}
 end)
 
 function H.state(name)

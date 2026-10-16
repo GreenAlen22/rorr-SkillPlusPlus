@@ -1,4 +1,4 @@
--- HUD: уровень над иконкой навыка, свободные очки, заливка при покупке.
+-- HUD: уровень над иконкой навыка и дрона, свободные очки, заливка при покупке.
 
 SPP = SPP or {}
 
@@ -6,6 +6,8 @@ local C = SPP.Config
 local S = SPP.State
 
 local H = C.hud
+
+local MAGAZINE_MOD = "GreenAlen22-PrimarySkillEvolution"
 
 local fa_left, fa_center = 0, 1
 local fa_top, fa_middle            = 0, 1
@@ -75,42 +77,50 @@ end
 
 Callback.add(Callback.ON_PLAYER_HUD_DRAW, function(player, x, y)
     if not Instance.exists(player) then return end
-    if Instance.exists(player.player_drone) then return end
 
     local id = player.id
-    local rank = S.get(player).rank
     local size, offset = icon_layout(player)
     local pixel = gm.constants.sSinglePixel
 
-    gm.gpu_set_colorwriteenable(true, true, true, false)
-
-    local fill_slot, fill = SPP.Input.progress(player)
-    if fill_slot then
-        local ix = x + offset(fill_slot)
-        local h = math.floor(size * fill + 0.5)
-        gm.draw_sprite_ext(pixel, 0, ix, y + size - h, size, h, 0, H.fill_colour, H.fill_alpha)
-        gm.draw_sprite_ext(pixel, 0, ix, y + size - h, size, 1, 0, c_white, H.edge_alpha)
+    local actor, rank = player, S.get(player).rank
+    local on_drone = Instance.exists(player.player_drone)
+    if on_drone then
+        actor = player.player_drone
+        rank = { [0] = SPP.Drone.level(actor), 0, 0, 0 }
     end
 
-    local flashes = icon_flash[id]
-    if flashes then
-        for slot, alpha in pairs(flashes) do
-            if alpha > 0 then
-                gm.draw_sprite_ext(pixel, 0, x + offset(slot), y, size, size, 0, c_white, alpha)
+    if not on_drone then
+        gm.gpu_set_colorwriteenable(true, true, true, false)
+
+        local fill_slot, fill = SPP.Input.progress(player)
+        if fill_slot then
+            local ix = x + offset(fill_slot)
+            local h = math.floor(size * fill + 0.5)
+            gm.draw_sprite_ext(pixel, 0, ix, y + size - h, size, h, 0, H.fill_colour, H.fill_alpha)
+            gm.draw_sprite_ext(pixel, 0, ix, y + size - h, size, 1, 0, c_white, H.edge_alpha)
+        end
+
+        local flashes = icon_flash[id]
+        if flashes then
+            for slot, alpha in pairs(flashes) do
+                if alpha > 0 then
+                    gm.draw_sprite_ext(pixel, 0, x + offset(slot), y, size, size, 0, c_white, alpha)
+                end
             end
         end
-    end
 
-    gm.gpu_set_colorwriteenable(true, true, true, true)
+        gm.gpu_set_colorwriteenable(true, true, true, true)
+    end
 
     gm.draw_set_font(gm.variable_global_get("fntSkillStockNum"))
     gm.draw_set_halign(fa_center)
     gm.draw_set_valign(fa_middle)
-    local locked = tonumber(player.artifact_lock_choice)
+    local locked = tonumber(actor.artifact_lock_choice)
+    local magazine = mods[MAGAZINE_MOD] ~= nil
     for slot = 0, 3 do
         if rank[slot] > 0 and slot ~= locked then
-            local skill = player:get_active_skill(slot)
-            local has_stock = skill.max_stock > 1 or skill.stock > 1
+            local skill = actor:get_active_skill(slot)
+            local has_stock = skill.max_stock > 1 or skill.stock > 1 or (slot == 0 and magazine)
             local dy = has_stock and H.rank_dy_over_stock or H.rank_dy
             text_with_shadow(x + offset(slot) + math.floor(size / 2), y + dy, tostring(rank[slot]), H.rank_colour)
         end
@@ -118,7 +128,7 @@ Callback.add(Callback.ON_PLAYER_HUD_DRAW, function(player, x, y)
 
     gm.draw_set_font(gm.constants.fntNormal)
 
-    local free = S.free(player)
+    local free = not on_drone and S.free(player)
     if free and free > 0 then
         gm.draw_set_halign(fa_center)
         gm.draw_set_valign(fa_middle)

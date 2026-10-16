@@ -6,6 +6,13 @@ mods["ReturnsAPI-ReturnsAPI"].auto{
     mp        = true,
 }
 
+api = setmetatable({}, { __index = function(_, key)
+    if key == "RAPI" then return nil end
+    error("Skills++ API ("..tostring(key).."): use it inside Initialize.add"
+        .." - Skills++ builds it in its own initialization; if you already are,"
+        .." Skills++ failed to initialize (see spp_status)", 2)
+end })
+
 local PATH = _ENV["!plugins_mod_folder_path"].."\\"
 
 local modules = {
@@ -19,6 +26,7 @@ local modules = {
 
     "upgrades/generic",
     "upgrades/upgrades",
+    "upgrades/api",
     "upgrades/hooks",
     "upgrades/stats",
 
@@ -38,6 +46,8 @@ local modules = {
     "upgrades/miner",
     "upgrades/pilot",
     "upgrades/robomando",
+
+    "upgrades/drone",
 
     "ui/tooltip",
     "ui/input",
@@ -68,11 +78,11 @@ end
 
 local expected = {
     "Config", "Net", "State", "Assets",
-    "Generic", "Upgrades", "Hooks", "Stats",
+    "Generic", "Upgrades", "Api", "Hooks", "Stats",
     "Commando", "Huntress", "Enforcer", "Bandit",
     "Engineer", "Arti", "Mercenary", "Acrid",
     "Loader", "Chef", "Drifter", "Sniper",
-    "Hand", "Miner", "Pilot", "Robomando",
+    "Hand", "Miner", "Pilot", "Robomando", "Drone",
     "Tooltip", "Input", "Hud",
     "Options", "Debug",
 }

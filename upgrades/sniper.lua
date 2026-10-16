@@ -36,14 +36,13 @@ U.register({ "sniperZ2" }, T.sniperZ2)
 U.register({ "sniperX2" }, T.sniperX2)
 U.register({ "sniperC2" }, T.sniperC2)
 
+local Z  = U.ids("sniperZ")
 local X  = U.ids("sniperX")
 local C  = U.ids("sniperC")
+local V  = U.ids("sniperV", "sniperVBoosted")
 local Z2 = U.ids("sniperZ2")
 local X2 = U.ids("sniperX2")
 local C2 = U.ids("sniperC2")
-
-local Z_ID = Skill.find("sniperZ", "ror").value
-local V_ID = Skill.find("sniperV", "ror").value
 
 local STATE_XFIRE    = H.state("sniperXFire")
 local STATE_Z2_FAR   = H.state("sniperZ2Far")
@@ -61,11 +60,6 @@ local ENEMY      = constant("pEnemy")
 local SPARKS_AIM = constant("sSparks8s")
 local SPARKS_C2  = constant("sSparks21r")
 
-local function slot_rank(actor, slot, id)
-    if actor:get_default_skill(slot).skill_id ~= id then return 0 end
-    return S.rank(actor, slot)
-end
-
 local function box_is(args, xs, ys)
     return args[8].value == xs and args[9].value == ys
 end
@@ -77,7 +71,7 @@ H.watch_event("oSniperBar", "Step_2", function(bar)
     if tonumber(bar.moving) ~= 1 then return end
     local player = bar.parent
     if not Instance.exists(player) or player.object_index ~= OP then return end
-    local rank = slot_rank(player, 0, Z_ID)
+    local rank = U.rank_for(player, Z)
     if rank < 1 then return end
 
     local dir = tonumber(bar.pos_direction) or 1
@@ -173,7 +167,7 @@ H.watch_event("oSniperDrone", "Step_2", function(drone)
     if not lost or Instance.exists(lost) then return end
 
     if not S.bool(player.local_client_is_authority) or S.bool(player.dead) then return end
-    local rank = slot_rank(player, 3, V_ID)
+    local rank = U.rank_for(player, V)
     if rank < 1 or math.random() >= T.sniperV.chainChance * rank then return end
     if not enemy_in_reach(player) then return end
 
@@ -197,7 +191,7 @@ DamageCalculate.add(function(api)
     local hit = api.hit
     if not Instance.exists(hit) or hit.id ~= target then return end
 
-    local rank = slot_rank(parent, 3, V_ID)
+    local rank = U.rank_for(parent, V)
     if rank > 0 then api.damage_mult(1 + T.sniperV.markDamage * rank) end
 end)
 

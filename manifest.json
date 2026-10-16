@@ -1,6 +1,6 @@
 {
 	"name": "SkillPlusPlus",
-	"version_number": "0.1.0",
+	"version_number": "0.3.0",
 	"website_url": "",
 	"description": "Skills++ for Risk of Rain Returns: every few team levels you earn a skill point and spend it to rank up one of your skills - more projectiles, bigger blasts, extra charges.",
 	"dependencies": [

@@ -73,13 +73,13 @@ local strong_shot = nil
 
 H.on_bullet(function(actor, args)
     strong_shot = nil
-    if firing_extra or args[6].value ~= Z_RANGE then return end
+    if args[6].value ~= Z_RANGE then return end
     local strong = H.in_state(actor, STATE_ZC)
     if not (strong or H.in_state(actor, STATE_ZA) or H.in_state(actor, STATE_ZB)) then return end
     local rank = U.rank_for(actor, Z)
     if rank < 1 then return end
     args[6].value = Z_RANGE * (1 + T.pilotZ.range * rank)
-    if strong then strong_shot = actor.id end
+    if strong and not firing_extra then strong_shot = actor.id end
 end)
 
 local FAN_DEGREES = 4
@@ -89,14 +89,14 @@ Callback.add(ActorState.find("pilotZC", "ror").on_enter, function(actor, data)
     fan_climb[actor.id] = 0
 end)
 
-H.after_bullet(function(actor, attack, args)
+H.after_bullet(function(actor, attack, args, vanilla)
     if strong_shot ~= actor.id then return end
     strong_shot = nil
     local extra = math.floor(U.rank_for(actor, Z) / T.pilotZ.clusterEvery)
     if extra < 1 then return end
 
     local values = {}
-    for i = 1, #args do values[i] = args[i].value end
+    for i = 1, #vanilla do values[i] = vanilla[i] end
     local dir = values[8]
     local xs = actor.image_xscale
     local colour = GM.skin_get_colour_override(actor.skin_current, "pilotZ", TRACER_COLOUR)
