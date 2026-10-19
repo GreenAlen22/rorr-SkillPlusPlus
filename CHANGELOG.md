@@ -2,6 +2,20 @@
 
 All notable Skills++ changes.
 
+## [0.4.0]
+
+### Added
+
+- **For modders:** shot rules - change your skills' bullets, explosions and direct hits through the API, without hooks of your own. See the wiki page For modders.
+- **For modders:** `reads` - a skill that fires with another skill's damage still gets its level's damage bonus.
+- **For modders:** a registered skill outside the four loadout slots - an extra loadout family, a skill slotted in for a while - shows its description line too.
+- `spp_status` shows how many shot rules other mods added.
+
+### Fixed
+
+- An error in the log on every shot of modded survivors whose skills check Heaven Cracker the way Starstorm Returns and Reclaimer do.
+- **Modded survivors:** a skill its mod marks as primary outside slot Z no longer gets the generic cooldown and charge bonus - the game never applied them to it. A utility skill like that cannot be leveled.
+
 ## [0.3.0]
 
 ### Added

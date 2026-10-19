@@ -1,4 +1,4 @@
--- API для модов с выжившими: register и rank. Больше наружу ничего не отдаётся.
+-- API для модов с выжившими: register, rank и правила выстрелов. Остальные хуки внутренние.
 
 SPP = SPP or {}
 
@@ -12,6 +12,8 @@ local A = {}
 local COOLDOWN_SUSPICIOUS = 0.5
 
 local external = {}
+
+local rule_count = 0
 
 local function skill_list(skills, fn_name)
     if type(skills) == "Skill" then return { skills } end
@@ -48,6 +50,24 @@ function A.register(skills, def)
         end
     end
 
+    local reads_id = nil
+    if def and def.reads ~= nil then
+        if type(def.reads) ~= "Skill" then
+            error("register "..names..": reads must be a Skill, got "..type(def.reads), 2)
+        end
+        if not def.damage then
+            error("register "..names..": reads needs damage - without it there is nothing to scale", 2)
+        end
+        for _, skill in ipairs(list) do
+            if skill.value == def.reads.value then
+                error("register "..names..": reads names "..name_of(def.reads)
+                    ..", one of the skills being registered; an Ancient Scepter version"
+                    .." asking for its base skill is found by Skills++ itself", 2)
+            end
+        end
+        reads_id = def.reads.value
+    end
+
     local ids = {}
     for _, skill in ipairs(list) do
         if skill.namespace == "ror" then
@@ -60,7 +80,7 @@ function A.register(skills, def)
         ids[#ids + 1] = skill.value
     end
 
-    U.register_external(ids, def, list[1].namespace..".skillPlusPlus")
+    U.register_external(ids, def, list[1].namespace..".skillPlusPlus", reads_id)
     for _, id in ipairs(ids) do external[id] = true end
 end
 
@@ -92,11 +112,55 @@ function A.count()
     return n
 end
 
+local function external_rule(fn, name)
+    if type(fn) ~= "function" then
+        error(name..": expected a function, got "..type(fn), 3)
+    end
+    local info = debug.getinfo(fn, "S")
+    local origin = info.short_src..":"..info.linedefined
+    rule_count = rule_count + 1
+    return function(...)
+        local ok, err = pcall(fn, ...)
+        if not ok then
+            if err == nil or err == "C++ exception" then err = "GameMaker error (see above)" end
+            log.warning("SkillPlusPlus: "..name.." rule at "..origin.." failed: "..tostring(err))
+        end
+    end
+end
+
+function A.on_bullet(fn)  SPP.Hooks.on_bullet(external_rule(fn, "on_bullet")) end
+function A.after_bullet(fn) SPP.Hooks.after_bullet(external_rule(fn, "after_bullet")) end
+function A.on_direct(fn)  SPP.Hooks.on_direct(external_rule(fn, "on_direct")) end
+function A.after_direct(fn) SPP.Hooks.after_direct(external_rule(fn, "after_direct")) end
+
+function A.on_explosion(fn)
+    local rule = external_rule(fn, "on_explosion")
+    SPP.Hooks.on_explosion(function(actor, args) rule(actor, args) end)
+end
+
+function A.after_explosion(fn)
+    local rule = external_rule(fn, "after_explosion")
+    SPP.Hooks.after_explosion(function(actor, attack, args, source, tag, vanilla)
+        rule(actor, attack, args, vanilla)
+    end)
+end
+
+function A.rules()
+    return rule_count
+end
+
 SPP.Api = A
 
-api.register = A.register
-api.rank = A.rank
+api.register        = A.register
+api.rank            = A.rank
+api.on_bullet       = A.on_bullet
+api.after_bullet    = A.after_bullet
+api.on_explosion    = A.on_explosion
+api.after_explosion = A.after_explosion
+api.on_direct       = A.on_direct
+api.after_direct    = A.after_direct
 setmetatable(api, { __index = function(_, key)
     if key == "RAPI" then return nil end
-    error("Skills++ API has no "..tostring(key).."; it has register and rank", 2)
+    error("Skills++ API has no "..tostring(key).."; it has register, rank, on_bullet, after_bullet,"
+        .." on_explosion, after_explosion, on_direct and after_direct", 2)
 end })

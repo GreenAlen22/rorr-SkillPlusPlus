@@ -10,6 +10,8 @@ local bullet_rules    = {}
 local bullet_after    = {}
 local explosion_rules = {}
 local explosion_after = {}
+local direct_rules    = {}
+local direct_after    = {}
 local activity_rules  = {}
 
 function H.on_bullet(fn) bullet_rules[#bullet_rules + 1] = fn end
@@ -19,6 +21,10 @@ function H.after_bullet(fn) bullet_after[#bullet_after + 1] = fn end
 function H.on_explosion(fn) explosion_rules[#explosion_rules + 1] = fn end
 
 function H.after_explosion(fn) explosion_after[#explosion_after + 1] = fn end
+
+function H.on_direct(fn) direct_rules[#direct_rules + 1] = fn end
+
+function H.after_direct(fn) direct_after[#direct_after + 1] = fn end
 
 function H.on_activity(fn) activity_rules[#activity_rules + 1] = fn end
 
@@ -32,19 +38,32 @@ Hook.add_post(gm.constants["skill_recalculate_stats@anon@8392@ActorSkill@scr_act
     for _, fn in ipairs(skill_recalc_rules) do fn(self, actor) end
 end)
 
-local bullet_calls = {}
+local function track_calls(fn, after_list)
+    local stack = {}
+    Hook.add_pre(fn, Callback.Priority.BEFORE * 2, function(self, other, result, args)
+        if #after_list == 0 or self.object_index ~= OP then return end
+        local values = { n = #args }
+        for i = 1, #args do values[i] = args[i].value end
+        stack[#stack + 1] = values
+    end)
+    Hook.add_post(fn, Callback.Priority.AFTER * 2, function(self, other, result, args)
+        if #after_list == 0 or self.object_index ~= OP then return end
+        stack[#stack] = nil
+    end)
+    return stack
+end
 
-Hook.add_pre(gm.constants.fire_bullet, Callback.Priority.BEFORE * 2, function(self, other, result, args)
-    if #bullet_after == 0 or self.object_index ~= OP then return end
-    local values = {}
-    for i = 1, #args do values[i] = args[i].value end
-    bullet_calls[#bullet_calls + 1] = values
-end)
+local bullet_calls    = track_calls(gm.constants.fire_bullet, bullet_after)
+local explosion_calls = track_calls(gm.constants.fire_explosion, explosion_after)
+local direct_calls    = track_calls(gm.constants.fire_direct, direct_after)
 
-Hook.add_post(gm.constants.fire_bullet, Callback.Priority.AFTER * 2, function(self, other, result, args)
-    if #bullet_after == 0 or self.object_index ~= OP then return end
-    bullet_calls[#bullet_calls] = nil
-end)
+local function own_attack()
+    return gm.variable_global_get("attack_bullet")
+end
+
+local function restore_attack(attack)
+    gm.variable_global_set("attack_bullet", attack)
+end
 
 Hook.add_pre(gm.constants.fire_bullet, function(self, other, result, args)
     if #bullet_rules == 0 or self.object_index ~= OP then return end
@@ -54,7 +73,9 @@ end)
 Hook.add_post(gm.constants.fire_bullet, function(self, other, result, args)
     if #bullet_after == 0 or self.object_index ~= OP then return end
     local vanilla = bullet_calls[#bullet_calls]
+    local own = own_attack()
     for _, fn in ipairs(bullet_after) do fn(self, result.value, args, vanilla) end
+    restore_attack(own)
 end)
 
 local sources = {}
@@ -73,8 +94,24 @@ end)
 Hook.add_post(gm.constants.fire_explosion, function(self, other, result, args)
     if #explosion_after == 0 or self.object_index ~= OP then return end
     local source = sources[#sources]
-    for _, fn in ipairs(explosion_after) do fn(self, result.value, args, source, tag) end
+    local vanilla = explosion_calls[#explosion_calls]
+    local own = own_attack()
+    for _, fn in ipairs(explosion_after) do fn(self, result.value, args, source, tag, vanilla) end
+    restore_attack(own)
     tag = nil
+end)
+
+Hook.add_pre(gm.constants.fire_direct, function(self, other, result, args)
+    if #direct_rules == 0 or self.object_index ~= OP then return end
+    for _, fn in ipairs(direct_rules) do fn(self, args) end
+end)
+
+Hook.add_post(gm.constants.fire_direct, function(self, other, result, args)
+    if #direct_after == 0 or self.object_index ~= OP then return end
+    local vanilla = direct_calls[#direct_calls]
+    local own = own_attack()
+    for _, fn in ipairs(direct_after) do fn(self, result.value, args, vanilla) end
+    restore_attack(own)
 end)
 
 local first_step_count = 0
@@ -128,7 +165,9 @@ end)
 Callback.add(Callback.ON_GAME_START, function()
     last = {}
     sources = {}
-    bullet_calls = {}
+    for _, stack in ipairs({ bullet_calls, explosion_calls, direct_calls }) do
+        for i = #stack, 1, -1 do stack[i] = nil end
+    end
 end)
 
 function H.state(name)

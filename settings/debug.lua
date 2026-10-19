@@ -46,6 +46,7 @@ Console.new{
         say(string.format("skill descriptions with the upgrade line: %d", SPP.Tooltip.claimed()))
 
         say(string.format("skills registered by other mods: %d", SPP.Api.count()))
+        say(string.format("shot rules from other mods: %d", SPP.Api.rules()))
 
         local level = S.level()
         if not level then

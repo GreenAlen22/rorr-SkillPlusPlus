@@ -14,16 +14,19 @@ local vanilla_tokens = SPP.vanilla_tokens
 
 local token_skill = {}
 
-function T.claim_tokens()
-    for skill_id in pairs(U.slot_of) do
-        local skill = Skill.wrap(skill_id)
-        local token = PREFIX..skill.namespace.."-"..skill.identifier
-        if skill.token_description ~= token then
-            vanilla_tokens[token] = skill.token_description
-            skill.token_description = token
-        end
-        token_skill[token] = skill_id
+local function claim(skill_id)
+    local skill = Skill.wrap(skill_id)
+    local token = PREFIX..skill.namespace.."-"..skill.identifier
+    if skill.token_description ~= token then
+        vanilla_tokens[token] = skill.token_description
+        skill.token_description = token
     end
+    token_skill[token] = skill_id
+end
+
+function T.claim_tokens()
+    for skill_id in pairs(U.slot_of) do claim(skill_id) end
+    for skill_id in U.registered_skills() do claim(skill_id) end
 end
 
 T.claim_tokens()

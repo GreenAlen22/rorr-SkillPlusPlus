@@ -47,6 +47,10 @@ Hook.add_post(gm.constants.skill_get_damage, function(self, other, result, args)
     if not Instance.exists(self) or self.object_index ~= OP then return end
 
     for slot = 0, 3 do
+        if self:get_active_skill(slot).skill_id == asked then return end
+    end
+
+    for slot = 0, 3 do
         local active = self:get_active_skill(slot).skill_id
         if U.asks_for[active] == asked then
             local rank = rank_of(self, slot)

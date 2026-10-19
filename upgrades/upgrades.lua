@@ -27,15 +27,31 @@ end
 
 local no_damage_ids = U.ids(table.unpack(G.no_damage))
 
+local without_recharge = {}
+for slot, def in pairs(G.slots) do
+    if slot ~= 0 and def.damage then without_recharge[slot] = { damage = def.damage } end
+end
+
+local primary_flag = {}
+
 local registered = {}
 
 local roots = {}
 local OWN_ROOT = "SkillPlusPlus.upgrade"
 
+function U.registered_skills()
+    return pairs(registered)
+end
+
 function U.def(id, slot)
     local own = registered[id]
     if own ~= nil then return own or nil end
-    if no_damage_ids[id] then return without_damage[slot] end
+    local no_recharge = slot ~= 0 and primary_flag[id]
+    if no_damage_ids[id] then
+        if no_recharge then return nil end
+        return without_damage[slot]
+    end
+    if no_recharge then return without_recharge[slot] end
     return G.slots[slot]
 end
 
@@ -65,8 +81,12 @@ U.asked = {}
 
 local outside = {}
 
+local function flagged_primary(id)
+    return (Skill.wrap(id).is_primary or false) and true or false
+end
+
 function U.build_maps()
-    local slot_of, asks_for = {}, {}
+    local slot_of, asks_for, primary = {}, {}, {}
     for id, asked in pairs(alias_ids) do asks_for[id] = asked end
     local survivors = Global.class_survivor
     for i = 0, #survivors - 1 do
@@ -75,11 +95,13 @@ function U.build_maps()
             for _, skill in ipairs(survivor:get_skills(slot)) do
                 local id = skill.value
                 if slot_of[id] == nil then slot_of[id] = slot end
+                if flagged_primary(id) then primary[id] = true end
 
                 local upgrade = slot == 3 and tonumber(skill.upgrade_skill)
                 if upgrade and upgrade > 0 then
                     if asks_for[upgrade] == nil then asks_for[upgrade] = id end
                     if slot_of[upgrade] == nil then slot_of[upgrade] = 3 end
+                    if flagged_primary(upgrade) then primary[upgrade] = true end
                 end
             end
         end
@@ -90,6 +112,7 @@ function U.build_maps()
     local asked = {}
     for _, id in pairs(asks_for) do asked[id] = true end
     U.slot_of, U.asks_for, U.asked = slot_of, asks_for, asked
+    primary_flag = primary
 end
 
 U.build_maps()
@@ -169,7 +192,8 @@ function U.register(identifiers, def)
     store(ids, def, OWN_ROOT)
 end
 
-function U.register_external(ids, def, root)
+function U.register_external(ids, def, root, reads_id)
+    for _, id in ipairs(ids) do alias_ids[id] = reads_id end
     store(ids, def, root)
 end
 

@@ -48,7 +48,10 @@ local shot_done = {}
 local cracked = {}
 
 Hook.add_post(gm.constants.skill_util_update_heaven_cracker, function(self, other, result, args)
-    if self.object_index == gm.constants.oP then cracked[self.id] = S.bool(result.value) end
+    local actor = Instance.wrap(args[1].value)
+    if Instance.exists(actor) and actor.object_index == gm.constants.oP then
+        cracked[actor.id] = S.bool(result.value)
+    end
 end)
 
 Callback.add(ActorState.find("huntressZ", "ror").on_enter, function(actor, data)

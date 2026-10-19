@@ -1,7 +1,7 @@
 {
 	"name": "SkillPlusPlus",
-	"version_number": "0.3.0",
-	"website_url": "",
+	"version_number": "0.4.0",
+	"website_url": "https://github.com/GreenAlen22/rorr-SkillPlusPlus/wiki",
 	"description": "Skills++ for Risk of Rain Returns: every few team levels you earn a skill point and spend it to rank up one of your skills - more projectiles, bigger blasts, extra charges.",
 	"dependencies": [
 		"LuaENVY-ENVY-1.2.1",
